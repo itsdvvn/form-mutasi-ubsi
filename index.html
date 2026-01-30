@@ -41,6 +41,31 @@
     <script type="text/babel">
       const { useState, useEffect } = React;
 
+      // Komponen Field dipindah ke luar agar tidak kehilangan fokus saat re-render
+      const Field = ({
+        label,
+        name,
+        value,
+        onChange,
+        placeholder,
+        type = "text",
+        full = false,
+      }) => (
+        <div className={full ? "col-span-full space-y-1" : "space-y-1"}>
+          <label className="text-xs font-bold text-slate-600 uppercase">
+            {label}
+          </label>
+          <input
+            name={name}
+            type={type}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all"
+          />
+        </div>
+      );
+
       const App = () => {
         const [formData, setFormData] = useState({
           tanggal: new Date().toLocaleDateString("id-ID", {
@@ -78,28 +103,6 @@
 
         const handlePrint = () => window.print();
 
-        const Field = ({
-          label,
-          name,
-          placeholder,
-          type = "text",
-          full = false,
-        }) => (
-          <div className={full ? "col-span-full space-y-1" : "space-y-1"}>
-            <label className="text-xs font-bold text-slate-600 uppercase">
-              {label}
-            </label>
-            <input
-              name={name}
-              type={type}
-              value={formData[name]}
-              onChange={handleChange}
-              placeholder={placeholder}
-              className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all"
-            />
-          </div>
-        );
-
         return (
           <div className="min-h-screen p-4 md:p-8">
             <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8">
@@ -121,18 +124,36 @@
                       <Field
                         label="Nama Lengkap"
                         name="nama"
+                        value={formData.nama}
+                        onChange={handleChange}
                         placeholder="Budi Santoso"
                       />
-                      <Field label="NIM" name="nim" placeholder="1221xxxx" />
+                      <Field
+                        label="NIM"
+                        name="nim"
+                        value={formData.nim}
+                        onChange={handleChange}
+                        placeholder="1221xxxx"
+                      />
                       <Field
                         label="Kelas"
                         name="kelas"
+                        value={formData.kelas}
+                        onChange={handleChange}
                         placeholder="12.4A.01"
                       />
-                      <Field label="No HP" name="noHp" placeholder="0812xxx" />
+                      <Field
+                        label="No HP"
+                        name="noHp"
+                        value={formData.noHp}
+                        onChange={handleChange}
+                        placeholder="0812xxx"
+                      />
                       <Field
                         label="Email"
                         name="email"
+                        value={formData.email}
+                        onChange={handleChange}
                         type="email"
                         placeholder="budi@gmail.com"
                       />
@@ -153,6 +174,8 @@
                       <Field
                         label="Kampus Asal"
                         name="kampusAsal"
+                        value={formData.kampusAsal}
+                        onChange={handleChange}
                         placeholder="UBSI Cengkareng"
                         full
                       />
@@ -186,7 +209,16 @@
                       <Field
                         label="Prodi Asal"
                         name="prodiAsal"
+                        value={formData.prodiAsal}
+                        onChange={handleChange}
                         placeholder="Sistem Informasi"
+                      />
+                      <Field
+                        label="Waktu Kuliah Asal"
+                        name="waktuAsal"
+                        value={formData.waktuAsal}
+                        onChange={handleChange}
+                        placeholder="Pagi / Sore / Malam"
                       />
                     </div>
 
@@ -214,16 +246,22 @@
                         <Field
                           label="Kampus Tujuan"
                           name="kampusTujuan"
+                          value={formData.kampusTujuan}
+                          onChange={handleChange}
                           placeholder="UBSI Margonda"
                         />
                         <Field
                           label="Prodi Tujuan"
                           name="prodiTujuan"
+                          value={formData.prodiTujuan}
+                          onChange={handleChange}
                           placeholder="Sistem Informasi"
                         />
                         <Field
                           label="Waktu Kuliah"
                           name="waktuTujuan"
+                          value={formData.waktuTujuan}
+                          onChange={handleChange}
                           placeholder="Malam"
                         />
                         <div className="space-y-1">

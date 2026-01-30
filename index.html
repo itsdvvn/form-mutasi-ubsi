@@ -21,7 +21,8 @@
             .print-area { 
                 box-shadow: none !important; 
                 margin: 0 !important; 
-                padding: 0 !important;
+                /* Menambahkan padding agar tidak terlalu mepet tepi kertas setelah margin browser dihilangkan */
+                padding: 20mm !important;
                 width: 100% !important;
                 height: 297mm !important; /* Force A4 Height */
                 overflow: hidden;
@@ -29,7 +30,8 @@
                 print-color-adjust: exact;
                 -webkit-print-color-adjust: exact;
             }
-            @page { margin: 10mm; size: A4 portrait; }
+            /* Mengatur margin halaman browser menjadi 0 untuk menghilangkan header/footer otomatis */
+            @page { margin: 0; size: A4 portrait; }
         }
 
         ::-webkit-scrollbar { width: 6px; }
@@ -46,7 +48,8 @@
             display: flex;
             align-items: center;
             justify-content: flex-start;
-            overflow: visible; /* Penting agar transform tidak terpotong */
+            /* Menambahkan overflow: hidden agar tanda tangan yang keluar area terpotong */
+            overflow: hidden;
             position: relative;
             width: 100%;
         }

@@ -29,7 +29,9 @@
 
         .signature-preview {
             max-height: 80px;
+            max-width: 200px;
             object-fit: contain;
+            mix-blend-mode: multiply; /* Fallback untuk visual lebih menyatu */
         }
     </style>
 </head>
@@ -76,8 +78,8 @@
             });
 
             const [signature, setSignature] = useState(null);
+            const [isProcessing, setIsProcessing] = useState(false);
 
-            // Hanya jalankan createIcons saat mount dan saat signature berubah (untuk icon baru jika ada)
             useEffect(() => {
                 lucide.createIcons();
             }, [signature]);
@@ -87,12 +89,57 @@
                 setFormData(prev => ({ ...prev, [name]: value }));
             }, []);
 
+            // Fungsi untuk menghapus background putih secara otomatis
+            const processImage = (imgElement) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = imgElement.width;
+                canvas.height = imgElement.height;
+                
+                ctx.drawImage(imgElement, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                // Threshold untuk mendeteksi warna putih/terang
+                // Semakin tinggi nilainya, semakin banyak area "putih" yang dihilangkan
+                const threshold = 180; 
+
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    // Hitung rata-rata kecerahan
+                    const brightness = (r + g + b) / 3;
+
+                    if (brightness > threshold) {
+                        // Ubah alpha (transparansi) menjadi 0 jika warna terang
+                        data[i + 3] = 0;
+                    } else {
+                        // Opsional: Buat bagian gelap menjadi benar-benar hitam pekat
+                        data[i] = 0;
+                        data[i + 1] = 0;
+                        data[i + 2] = 0;
+                    }
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+                return canvas.toDataURL('image/png');
+            };
+
             const handleSignatureUpload = (e) => {
                 const file = e.target.files[0];
                 if (file) {
+                    setIsProcessing(true);
                     const reader = new FileReader();
-                    reader.onloadend = () => {
-                        setSignature(reader.result);
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const processedDataUrl = processImage(img);
+                            setSignature(processedDataUrl);
+                            setIsProcessing(false);
+                        };
+                        img.src = event.target.result;
                     };
                     reader.readAsDataURL(file);
                 }
@@ -115,7 +162,6 @@
                                 </div>
 
                                 <div className="space-y-6">
-                                    {/* Data Asal - 2025 */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <Field label="Nama Lengkap" name="nama" value={formData.nama} onChange={handleChange} placeholder="Contoh: Muhammad..." />
                                         <Field label="NIM" name="nim" value={formData.nim} onChange={handleChange} placeholder="1221xxxx" />
@@ -151,7 +197,6 @@
                                         ></textarea>
                                     </div>
 
-                                    {/* Data Tujuan - 2026 */}
                                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-4">
                                         <h3 className="font-bold text-blue-800 text-sm flex items-center gap-2">
                                             <i data-lucide="map-pin" className="w-4 h-4"></i> Rencana Pindah (Periode 2026)
@@ -170,17 +215,29 @@
                                         </div>
                                     </div>
 
-                                    {/* Tanda Tangan Upload */}
+                                    {/* Tanda Tangan Upload with Instruction */}
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-600 uppercase flex items-center gap-1">
-                                            <i data-lucide="pen-tool" className="w-3 h-3"></i> Upload Tanda Tangan (PNG)
+                                            <i data-lucide="pen-tool" className="w-3 h-3"></i> Upload Tanda Tangan (Foto)
                                         </label>
-                                        <input 
-                                            type="file" 
-                                            accept="image/png, image/jpeg" 
-                                            onChange={handleSignatureUpload}
-                                            className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                                        />
+                                        <div className="p-4 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
+                                            <input 
+                                                type="file" 
+                                                accept="image/*" 
+                                                onChange={handleSignatureUpload}
+                                                className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
+                                            />
+                                            <div className="mt-3 space-y-1">
+                                                <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                                                    <span className="text-blue-600 font-bold">TIPS:</span> Tanda tangan di atas <span className="underline">kertas putih polos</span> dengan <span className="underline">tinta hitam pekat</span>. Sistem akan otomatis menghapus background putih agar terlihat transparan.
+                                                </p>
+                                                {isProcessing && (
+                                                    <p className="text-[10px] text-orange-500 animate-pulse font-bold flex items-center gap-1">
+                                                        <i data-lucide="loader-2" className="w-3 h-3 animate-spin"></i> Memproses transparansi...
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <button onClick={handlePrint} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
@@ -262,7 +319,7 @@
 
                                 <div className="mt-10">
                                     <div>Hormat Saya</div>
-                                    <div className="h-20 flex items-center justify-start py-2">
+                                    <div className="h-24 flex items-center justify-start py-2">
                                         {signature ? (
                                             <img src={signature} alt="Tanda Tangan" className="signature-preview ml-4" />
                                         ) : (
@@ -274,7 +331,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <p className="no-print mt-4 text-slate-400 text-xs italic">Pratinjau Kertas A4 (Gunakan Ctrl+P untuk simpan PDF)</p>
+                            <p className="no-print mt-4 text-slate-400 text-xs italic">Aplikasi Pengajuan Mutasi Otomatis (A4 Preview)</p>
                         </div>
                     </div>
                 </div>

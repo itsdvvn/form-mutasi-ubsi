@@ -21,16 +21,14 @@
             .print-area { 
                 box-shadow: none !important; 
                 margin: 0 !important; 
-                /* Menambahkan padding agar tidak terlalu mepet tepi kertas setelah margin browser dihilangkan */
                 padding: 20mm !important;
                 width: 100% !important;
-                height: 297mm !important; /* Force A4 Height */
+                height: 297mm !important; /* Paksa Tinggi A4 */
                 overflow: hidden;
                 display: block !important;
                 print-color-adjust: exact;
                 -webkit-print-color-adjust: exact;
             }
-            /* Mengatur margin halaman browser menjadi 0 untuk menghilangkan header/footer otomatis */
             @page { margin: 0; size: A4 portrait; }
         }
 
@@ -48,7 +46,6 @@
             display: flex;
             align-items: center;
             justify-content: flex-start;
-            /* Menambahkan overflow: hidden agar tanda tangan yang keluar area terpotong */
             overflow: hidden;
             position: relative;
             width: 100%;
@@ -66,7 +63,6 @@
             transition: transform 0.05s linear;
         }
 
-        /* Utility untuk memaksakan 1 halaman */
         .tight-layout td { padding-top: 1px; padding-bottom: 1px; }
     </style>
 </head>
@@ -104,14 +100,14 @@
                 jenjangAsal: 'S1',
                 prodiAsal: '',
                 peminatanAsal: 'Public Relations',
-                waktuAsal: '',
+                waktuAsal: 'Pagi',
                 alasan: '',
                 periodeTujuan: 'Maret 2026',
                 kampusTujuan: '',
                 jenjangTujuan: 'S1',
                 prodiTujuan: '',
                 peminatanTujuan: 'Public Relations',
-                waktuTujuan: '',
+                waktuTujuan: 'Pagi',
             });
 
             const [originalImg, setOriginalImg] = useState(null);
@@ -149,7 +145,6 @@
                 return canvas.toDataURL('image/png');
             };
 
-            // Optimasi Slider agar tidak berat di Mobile (Debounce)
             useEffect(() => {
                 if (originalImg) {
                     const timer = setTimeout(() => {
@@ -157,7 +152,7 @@
                             const result = processImage(originalImg, threshold);
                             setProcessedSig(result);
                         });
-                    }, 50); // Delay 50ms untuk kestabilan mobile
+                    }, 50);
                     return () => clearTimeout(timer);
                 }
             }, [threshold, originalImg]);
@@ -203,9 +198,17 @@
                                                 <option>Maret 2025</option><option>September 2025</option>
                                             </select>
                                         </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Waktu Kuliah Asal</label>
+                                            <select name="waktuAsal" value={formData.waktuAsal} onChange={handleChange} className="w-full p-2.5 border border-slate-300 rounded-lg outline-none text-sm bg-white">
+                                                <option value="Pagi">Pagi</option>
+                                                <option value="Sore">Sore</option>
+                                                <option value="Malam">Malam</option>
+                                            </select>
+                                        </div>
                                         <Field label="Prodi Asal" name="prodiAsal" value={formData.prodiAsal} onChange={handleChange} />
                                         <Field label="Peminatan Asal" name="peminatanAsal" value={formData.peminatanAsal} onChange={handleChange} />
-                                        <Field label="Kampus Asal" name="kampusAsal" value={formData.kampusAsal} onChange={handleChange} />
+                                        <Field label="Kampus Asal" name="kampusAsal" value={formData.kampusAsal} onChange={handleChange} full />
                                     </div>
 
                                     <Field label="Alasan Mutasi" name="alasan" value={formData.alasan} onChange={handleChange} placeholder="Jelaskan alasan pemindahan..." full />
@@ -221,9 +224,17 @@
                                                     <option>Maret 2026</option><option>September 2026</option>
                                                 </select>
                                             </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Waktu Kuliah Tujuan</label>
+                                                <select name="waktuTujuan" value={formData.waktuTujuan} onChange={handleChange} className="w-full p-2.5 border border-slate-300 rounded-lg outline-none text-sm bg-white">
+                                                    <option value="Pagi">Pagi</option>
+                                                    <option value="Sore">Sore</option>
+                                                    <option value="Malam">Malam</option>
+                                                </select>
+                                            </div>
                                             <Field label="Kampus Tujuan" name="kampusTujuan" value={formData.kampusTujuan} onChange={handleChange} />
                                             <Field label="Prodi Tujuan" name="prodiTujuan" value={formData.prodiTujuan} onChange={handleChange} />
-                                            <Field label="Peminatan Tujuan" name="peminatanTujuan" value={formData.peminatanTujuan} onChange={handleChange} />
+                                            <Field label="Peminatan Tujuan" name="peminatanTujuan" value={formData.peminatanTujuan} onChange={handleChange} full />
                                         </div>
                                     </div>
 
@@ -335,7 +346,8 @@
                                             ['Kampus UBSI cabang', formData.kampusAsal],
                                             ['Jenjang Study', formData.jenjangAsal, true], 
                                             ['Program Studi', formData.prodiAsal],
-                                            ['Peminatan', formData.peminatanAsal]
+                                            ['Peminatan', formData.peminatanAsal],
+                                            ['Waktu Kuliah', formData.waktuAsal]
                                         ].map(([label, val, bold], idx) => (
                                             <tr key={idx}>
                                                 <td className="w-[180px] align-top">{label}</td>
@@ -357,7 +369,8 @@
                                             ['Kampus UBSI cabang', formData.kampusTujuan],
                                             ['Jenjang Study', formData.jenjangTujuan, true], 
                                             ['Program Studi', formData.prodiTujuan],
-                                            ['Peminatan', formData.peminatanTujuan]
+                                            ['Peminatan', formData.peminatanTujuan],
+                                            ['Waktu Kuliah', formData.waktuTujuan]
                                         ].map(([label, val, bold], idx) => (
                                             <tr key={idx}>
                                                 <td className="w-[180px] align-top">{label}</td>

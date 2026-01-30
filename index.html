@@ -28,10 +28,14 @@
         }
 
         .signature-preview {
-            max-height: 80px;
-            max-width: 200px;
+            max-height: 90px;
+            max-width: 180px;
             object-fit: contain;
-            mix-blend-mode: multiply; /* Fallback untuk visual lebih menyatu */
+        }
+
+        /* Styling Slider */
+        input[type=range] {
+            accent-color: #2563eb;
         }
     </style>
 </head>
@@ -39,9 +43,8 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useCallback } = React;
+        const { useState, useEffect, useCallback, useRef } = React;
 
-        // Komponen Field di luar App agar stabil dan tidak kehilangan fokus
         const Field = React.memo(({ label, name, value, onChange, placeholder, type = "text", full = false }) => (
             <div className={full ? "col-span-full space-y-1" : "space-y-1"}>
                 <label className="text-xs font-bold text-slate-600 uppercase">{label}</label>
@@ -78,21 +81,25 @@
             });
 
             const [signature, setSignature] = useState(null);
+            const [originalImg, setOriginalImg] = useState(null);
+            const [threshold, setThreshold] = useState(130); // Default threshold yang lebih toleran
             const [isProcessing, setIsProcessing] = useState(false);
 
             useEffect(() => {
                 lucide.createIcons();
-            }, [signature]);
+            }, [signature, originalImg]);
 
             const handleChange = useCallback((e) => {
                 const { name, value } = e.target;
                 setFormData(prev => ({ ...prev, [name]: value }));
             }, []);
 
-            // Fungsi untuk menghapus background putih secara otomatis
-            const processImage = (imgElement) => {
+            // Pemrosesan gambar dengan parameter threshold
+            const processImage = (imgElement, currentThreshold) => {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
+                
+                // Gunakan ukuran asli gambar
                 canvas.width = imgElement.width;
                 canvas.height = imgElement.height;
                 
@@ -100,32 +107,37 @@
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imageData.data;
 
-                // Threshold untuk mendeteksi warna putih/terang
-                // Semakin tinggi nilainya, semakin banyak area "putih" yang dihilangkan
-                const threshold = 180; 
-
                 for (let i = 0; i < data.length; i += 4) {
                     const r = data[i];
                     const g = data[i + 1];
                     const b = data[i + 2];
                     
-                    // Hitung rata-rata kecerahan
-                    const brightness = (r + g + b) / 3;
+                    // Menghitung grayscale menggunakan formula luminosity
+                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
 
-                    if (brightness > threshold) {
-                        // Ubah alpha (transparansi) menjadi 0 jika warna terang
-                        data[i + 3] = 0;
+                    if (gray > currentThreshold) {
+                        // Area terang (kertas/garis) menjadi transparan
+                        data[i + 3] = 0; 
                     } else {
-                        // Opsional: Buat bagian gelap menjadi benar-benar hitam pekat
+                        // Area gelap (tinta) menjadi hitam pekat
                         data[i] = 0;
                         data[i + 1] = 0;
                         data[i + 2] = 0;
+                        data[i + 3] = 255;
                     }
                 }
 
                 ctx.putImageData(imageData, 0, 0);
                 return canvas.toDataURL('image/png');
             };
+
+            // Menangani perubahan slider
+            useEffect(() => {
+                if (originalImg) {
+                    const processed = processImage(originalImg, threshold);
+                    setSignature(processed);
+                }
+            }, [threshold, originalImg]);
 
             const handleSignatureUpload = (e) => {
                 const file = e.target.files[0];
@@ -135,8 +147,7 @@
                     reader.onload = (event) => {
                         const img = new Image();
                         img.onload = () => {
-                            const processedDataUrl = processImage(img);
-                            setSignature(processedDataUrl);
+                            setOriginalImg(img); // Simpan gambar asli untuk diatur slidernya nanti
                             setIsProcessing(false);
                         };
                         img.src = event.target.result;
@@ -215,8 +226,8 @@
                                         </div>
                                     </div>
 
-                                    {/* Tanda Tangan Upload with Instruction */}
-                                    <div className="space-y-2">
+                                    {/* Signature Upload with Advanced UI */}
+                                    <div className="space-y-3">
                                         <label className="text-xs font-bold text-slate-600 uppercase flex items-center gap-1">
                                             <i data-lucide="pen-tool" className="w-3 h-3"></i> Upload Tanda Tangan (Foto)
                                         </label>
@@ -227,16 +238,32 @@
                                                 onChange={handleSignatureUpload}
                                                 className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
                                             />
-                                            <div className="mt-3 space-y-1">
-                                                <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-                                                    <span className="text-blue-600 font-bold">TIPS:</span> Tanda tangan di atas <span className="underline">kertas putih polos</span> dengan <span className="underline">tinta hitam pekat</span>. Sistem akan otomatis menghapus background putih agar terlihat transparan.
-                                                </p>
-                                                {isProcessing && (
-                                                    <p className="text-[10px] text-orange-500 animate-pulse font-bold flex items-center gap-1">
-                                                        <i data-lucide="loader-2" className="w-3 h-3 animate-spin"></i> Memproses transparansi...
+                                            
+                                            {originalImg && (
+                                                <div className="mt-4 pt-4 border-t border-slate-200 space-y-3">
+                                                    <div className="flex justify-between items-center">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase">Atur Toleransi Background</label>
+                                                        <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">{threshold}</span>
+                                                    </div>
+                                                    <input 
+                                                        type="range" 
+                                                        min="30" 
+                                                        max="220" 
+                                                        value={threshold} 
+                                                        onChange={(e) => setThreshold(parseInt(e.target.value))} 
+                                                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                                                    />
+                                                    <p className="text-[9px] text-slate-400 italic">
+                                                        Geser ke kiri untuk mempertebal tinta, geser ke kanan untuk menghilangkan garis buku/bayangan.
                                                     </p>
-                                                )}
-                                            </div>
+                                                </div>
+                                            )}
+
+                                            {!originalImg && (
+                                                <p className="mt-3 text-[10px] text-slate-500 leading-relaxed italic">
+                                                    * Gunakan kertas putih polos jika memungkinkan. Jika di buku tulis, gunakan fitur toleransi di atas untuk membersihkan garis.
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
 
@@ -254,7 +281,7 @@
                                     Jakarta, {formData.tanggal}
                                 </div>
 
-                                <div className="mb-8">
+                                <div className="mb-8 font-sans">
                                     Kepada YTH.<br />
                                     <span className="font-bold">Ketua Penerimaan Mahasiswa Baru</span><br />
                                     Universitas Bina Sarana Informatika<br />
@@ -318,20 +345,20 @@
                                 </p>
 
                                 <div className="mt-10">
-                                    <div>Hormat Saya</div>
-                                    <div className="h-24 flex items-center justify-start py-2">
+                                    <div className="mb-2">Hormat Saya</div>
+                                    <div className="h-28 flex items-center justify-start overflow-hidden py-1">
                                         {signature ? (
-                                            <img src={signature} alt="Tanda Tangan" className="signature-preview ml-4" />
+                                            <img src={signature} alt="Tanda Tangan" className="signature-preview ml-6" />
                                         ) : (
-                                            <div className="text-slate-200 text-xs italic ml-4 no-print">(Tanda Tangan belum diunggah)</div>
+                                            <div className="text-slate-200 text-xs italic ml-10 no-print border border-dashed p-4">(Area Tanda Tangan)</div>
                                         )}
                                     </div>
                                     <div className="font-bold underline uppercase">
-                                        ( {formData.nama || 'Nama Lengkap'} )
+                                        ( {formData.nama || 'Muhammad Wahyudi Setiawan'} )
                                     </div>
                                 </div>
                             </div>
-                            <p className="no-print mt-4 text-slate-400 text-xs italic">Aplikasi Pengajuan Mutasi Otomatis (A4 Preview)</p>
+                            <p className="no-print mt-4 text-slate-400 text-xs italic">Saran: Jika garis buku masih terlihat, geser slider ke kanan (angka lebih besar).</p>
                         </div>
                     </div>
                 </div>

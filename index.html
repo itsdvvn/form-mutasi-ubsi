@@ -17,19 +17,32 @@
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         
         @media print {
+            /* Sembunyikan elemen non-cetak */
             .no-print { display: none !important; }
+            
+            /* Reset body untuk cetak */
+            body { background: white !important; padding: 0 !important; margin: 0 !important; }
+            
             .print-area { 
                 box-shadow: none !important; 
                 margin: 0 !important; 
-                padding: 20mm !important;
-                width: 100% !important;
-                height: 297mm !important; /* Paksa Tinggi A4 */
-                overflow: hidden;
+                /* Memberikan margin internal manual agar teks tidak nempel tepi kertas */
+                padding: 15mm 20mm !important; 
+                width: 210mm !important;
+                height: 297mm !important;
+                overflow: hidden !important;
                 display: block !important;
-                print-color-adjust: exact;
+                position: relative !important;
+                background: white !important;
                 -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
-            @page { margin: 0; size: A4 portrait; }
+
+            /* Menghilangkan Header/Footer Otomatis (URL, Tanggal, Judul) */
+            @page { 
+                margin: 0; 
+                size: A4 portrait; 
+            }
         }
 
         ::-webkit-scrollbar { width: 6px; }
@@ -41,14 +54,16 @@
             touch-action: none;
         }
         
+        /* Area kontainer TTD yang akurat & terpotong jika meluber */
         .sig-container {
-            height: 90px;
+            height: 80px; /* Tinggi konsisten */
             display: flex;
             align-items: center;
             justify-content: flex-start;
-            overflow: hidden;
+            overflow: hidden; /* MEMOTONG TTD YANG KELUAR */
             position: relative;
             width: 100%;
+            background: transparent;
         }
 
         .sig-image-base {
@@ -59,10 +74,7 @@
             display: block;
         }
 
-        .preview-transition {
-            transition: transform 0.05s linear;
-        }
-
+        /* Utility untuk memaksakan spasi rapat agar 1 halaman */
         .tight-layout td { padding-top: 1px; padding-bottom: 1px; }
     </style>
 </head>
@@ -117,7 +129,9 @@
             const [offsetX, setOffsetX] = useState(0);
             const [offsetY, setOffsetY] = useState(0);
 
-            useEffect(() => { lucide.createIcons(); }, [originalImg, processedSig]);
+            useEffect(() => { 
+                if (typeof lucide !== 'undefined') lucide.createIcons(); 
+            }, [originalImg, processedSig]);
 
             const handleChange = useCallback((e) => {
                 const { name, value } = e.target;
@@ -152,7 +166,7 @@
                             const result = processImage(originalImg, threshold);
                             setProcessedSig(result);
                         });
-                    }, 50);
+                    }, 80); // Debounce sedikit lebih lama untuk stabilitas mobile
                     return () => clearTimeout(timer);
                 }
             }, [threshold, originalImg]);
@@ -170,12 +184,19 @@
                 }
             };
 
+            const handlePrint = () => {
+                // Memberikan waktu browser mobile untuk melakukan render akhir sebelum print dialog muncul
+                setTimeout(() => {
+                    window.print();
+                }, 200);
+            };
+
             return (
                 <div className="min-h-screen p-4 md:p-8 bg-slate-100">
                     <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8">
                         
                         {/* FORM KONTROL */}
-                        <div className="w-full lg:w-5/12 space-y-6 no-print h-fit lg:sticky lg:top-8">
+                        <div className="w-full lg:w-5/12 space-y-6 no-print h-fit lg:sticky lg:top-8 overflow-y-auto max-h-[90vh] pr-1">
                             <div className="bg-white p-5 md:p-8 rounded-2xl shadow-xl border border-slate-200">
                                 <div className="flex items-center gap-3 mb-6">
                                     <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-lg">
@@ -201,9 +222,7 @@
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Waktu Kuliah Asal</label>
                                             <select name="waktuAsal" value={formData.waktuAsal} onChange={handleChange} className="w-full p-2.5 border border-slate-300 rounded-lg outline-none text-sm bg-white">
-                                                <option value="Pagi">Pagi</option>
-                                                <option value="Sore">Sore</option>
-                                                <option value="Malam">Malam</option>
+                                                <option value="Pagi">Pagi</option><option value="Sore">Sore</option><option value="Malam">Malam</option>
                                             </select>
                                         </div>
                                         <Field label="Prodi Asal" name="prodiAsal" value={formData.prodiAsal} onChange={handleChange} />
@@ -227,9 +246,7 @@
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Waktu Kuliah Tujuan</label>
                                                 <select name="waktuTujuan" value={formData.waktuTujuan} onChange={handleChange} className="w-full p-2.5 border border-slate-300 rounded-lg outline-none text-sm bg-white">
-                                                    <option value="Pagi">Pagi</option>
-                                                    <option value="Sore">Sore</option>
-                                                    <option value="Malam">Malam</option>
+                                                    <option value="Pagi">Pagi</option><option value="Sore">Sore</option><option value="Malam">Malam</option>
                                                 </select>
                                             </div>
                                             <Field label="Kampus Tujuan" name="kampusTujuan" value={formData.kampusTujuan} onChange={handleChange} />
@@ -249,16 +266,16 @@
                                                 <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" id="sig-upload" />
                                                 <label htmlFor="sig-upload" className="w-full py-10 bg-white border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center cursor-pointer hover:bg-slate-100 transition-colors group">
                                                     <i data-lucide="upload-cloud" className="w-10 h-10 text-slate-300 group-hover:text-blue-400 mb-2 transition-colors"></i>
-                                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Upload Foto Tanda Tangan</span>
+                                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center px-4">Upload Foto Tanda Tangan</span>
                                                 </label>
                                             </div>
                                         ) : (
                                             <div className="space-y-6">
                                                 <div className="bg-white border border-slate-200 rounded-xl shadow-md overflow-hidden ring-4 ring-blue-50">
                                                     <div className="bg-slate-800 text-white text-[9px] font-bold py-1.5 px-3 uppercase tracking-[0.2em] text-center">Studio Preview (Akurat)</div>
-                                                    <div className="p-6 bg-white">
+                                                    <div className="p-5 bg-white">
                                                         <div className="text-[11pt] text-black mb-1 font-sans">Hormat Saya,</div>
-                                                        <div className="sig-container border-b border-dashed border-slate-100">
+                                                        <div className="sig-container border border-dashed border-slate-200 rounded">
                                                             <img 
                                                                 src={processedSig} 
                                                                 className="sig-image-base" 
@@ -309,7 +326,7 @@
                                         )}
                                     </div>
 
-                                    <button onClick={() => window.print()} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-xl transition-all flex items-center justify-center gap-3 active:scale-[0.98] uppercase tracking-[0.1em]">
+                                    <button onClick={handlePrint} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-xl transition-all flex items-center justify-center gap-3 active:scale-[0.98] uppercase tracking-[0.1em]">
                                         <i data-lucide="printer" className="w-5 h-5"></i> Simpan / Cetak PDF
                                     </button>
                                 </div>
@@ -318,7 +335,7 @@
 
                         {/* PREVIEW SURAT (DOKUMEN) */}
                         <div className="w-full lg:w-7/12 flex flex-col items-center overflow-hidden">
-                            <div className="print-area w-full max-w-[210mm] bg-white shadow-2xl p-[14mm] min-h-[297mm] text-[10.5pt] leading-tight text-black flex flex-col">
+                            <div className="print-area w-full max-w-[210mm] bg-white shadow-2xl p-[12mm] min-h-[297mm] text-[10.5pt] leading-tight text-black flex flex-col">
                                 <div className="text-right mb-4 font-sans text-sm">Jakarta, {formData.tanggal}</div>
                                 
                                 <div className="mb-4 font-sans leading-snug">
@@ -405,7 +422,7 @@
                                 </div>
                             </div>
                             <p className="no-print my-4 text-slate-400 text-[10px] italic">
-                                * Seluruh isi surat telah disesuaikan agar muat dalam 1 halaman A4.
+                                * Isi surat telah dipadatkan agar pas 1 halaman A4 tanpa watermark browser.
                             </p>
                         </div>
                     </div>

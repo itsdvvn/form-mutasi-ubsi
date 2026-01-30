@@ -23,8 +23,13 @@
                 margin: 0 !important; 
                 padding: 0 !important;
                 width: 100% !important;
+                height: 297mm !important; /* Force A4 Height */
+                overflow: hidden;
+                display: block !important;
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
             }
-            @page { margin: 15mm; size: A4; }
+            @page { margin: 10mm; size: A4 portrait; }
         }
 
         ::-webkit-scrollbar { width: 6px; }
@@ -37,32 +42,36 @@
         }
         
         .sig-container {
-            height: 96px; /* h-24 = 96px */
+            height: 90px;
             display: flex;
             align-items: center;
             justify-content: flex-start;
-            overflow: hidden;
+            overflow: visible; /* Penting agar transform tidak terpotong */
             position: relative;
             width: 100%;
         }
 
         .sig-image-base {
-            height: 100%; /* Mengunci tinggi dasar agar skala konsisten */
+            height: 100%; 
             image-rendering: -webkit-optimize-contrast;
             transform-origin: left center;
             object-fit: contain;
+            display: block;
         }
 
         .preview-transition {
             transition: transform 0.05s linear;
         }
+
+        /* Utility untuk memaksakan 1 halaman */
+        .tight-layout td { padding-top: 1px; padding-bottom: 1px; }
     </style>
 </head>
 <body class="bg-slate-100">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useCallback } = React;
+        const { useState, useEffect, useCallback, useTransition } = React;
 
         const Field = React.memo(({ label, name, value, onChange, placeholder, type = "text", full = false }) => (
             <div className={full ? "col-span-full space-y-1" : "space-y-1"}>
@@ -73,12 +82,13 @@
                     value={value} 
                     onChange={onChange} 
                     placeholder={placeholder}
-                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all bg-white"
+                    className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all bg-white"
                 />
             </div>
         ));
 
         const App = () => {
+            const [isPending, startTransition] = useTransition();
             const [formData, setFormData] = useState({
                 tanggal: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
                 nama: '',
@@ -136,10 +146,16 @@
                 return canvas.toDataURL('image/png');
             };
 
+            // Optimasi Slider agar tidak berat di Mobile (Debounce)
             useEffect(() => {
                 if (originalImg) {
-                    const result = processImage(originalImg, threshold);
-                    setProcessedSig(result);
+                    const timer = setTimeout(() => {
+                        startTransition(() => {
+                            const result = processImage(originalImg, threshold);
+                            setProcessedSig(result);
+                        });
+                    }, 50); // Delay 50ms untuk kestabilan mobile
+                    return () => clearTimeout(timer);
                 }
             }, [threshold, originalImg]);
 
@@ -160,11 +176,11 @@
                 <div className="min-h-screen p-4 md:p-8 bg-slate-100">
                     <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8">
                         
-                        {/* FORM KIRI (KONTROL) */}
+                        {/* FORM KONTROL */}
                         <div className="w-full lg:w-5/12 space-y-6 no-print h-fit lg:sticky lg:top-8">
                             <div className="bg-white p-5 md:p-8 rounded-2xl shadow-xl border border-slate-200">
                                 <div className="flex items-center gap-3 mb-6">
-                                    <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-200">
+                                    <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-lg">
                                         <i data-lucide="edit-3" className="w-6 h-6"></i>
                                     </div>
                                     <h1 className="text-xl font-bold text-slate-800 tracking-tight">Data Mutasi</h1>
@@ -208,8 +224,8 @@
                                         </div>
                                     </div>
 
-                                    {/* SIGNATURE STUDIO - AKURASI 1:1 DENGAN SCALE HINGGA 1000% */}
-                                    <div className="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-inner">
+                                    {/* SIGNATURE STUDIO */}
+                                    <div className="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200">
                                         <h3 className="font-bold text-slate-700 text-xs flex items-center gap-2 uppercase tracking-widest">
                                             <i data-lucide="pen-tool" className="w-4 h-4 text-blue-600"></i> Signature Studio
                                         </h3>
@@ -224,7 +240,6 @@
                                             </div>
                                         ) : (
                                             <div className="space-y-6">
-                                                {/* MINI PREVIEW SINKRON 1:1 */}
                                                 <div className="bg-white border border-slate-200 rounded-xl shadow-md overflow-hidden ring-4 ring-blue-50">
                                                     <div className="bg-slate-800 text-white text-[9px] font-bold py-1.5 px-3 uppercase tracking-[0.2em] text-center">Studio Preview (Akurat)</div>
                                                     <div className="p-6 bg-white">
@@ -232,7 +247,7 @@
                                                         <div className="sig-container border-b border-dashed border-slate-100">
                                                             <img 
                                                                 src={processedSig} 
-                                                                className="sig-image-base preview-transition" 
+                                                                className="sig-image-base" 
                                                                 style={{ 
                                                                     transform: `scale(${scale}) translate(${offsetX}px, ${offsetY}px)`,
                                                                 }} 
@@ -245,37 +260,34 @@
                                                 </div>
 
                                                 <div className="space-y-4">
-                                                    {/* Threshold Control */}
                                                     <div className="space-y-1.5">
                                                         <div className="flex justify-between items-center px-1">
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">1. Kebersihan Latar</label>
-                                                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded shadow-sm">{threshold}</span>
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">1. Kebersihan Latar {isPending && "..."}</label>
+                                                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{threshold}</span>
                                                         </div>
                                                         <input type="range" min="30" max="230" value={threshold} onChange={(e) => setThreshold(parseInt(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
                                                     </div>
 
-                                                    {/* Scale Control - Ditingkatkan ke 10.0 (1000%) */}
                                                     <div className="space-y-1.5">
                                                         <div className="flex justify-between items-center px-1">
                                                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">2. Ukuran (Scale)</label>
-                                                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded shadow-sm">{Math.round(scale * 100)}%</span>
+                                                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{Math.round(scale * 100)}%</span>
                                                         </div>
                                                         <input type="range" min="0.1" max="10.0" step="0.05" value={scale} onChange={(e) => setScale(parseFloat(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
                                                     </div>
 
-                                                    {/* Position Controls */}
                                                     <div className="grid grid-cols-2 gap-4">
                                                         <div className="space-y-1.5">
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">3. Kiri-Kanan</label>
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center block">3. Kiri-Kanan</label>
                                                             <input type="range" min="-300" max="300" value={offsetX} onChange={(e) => setOffsetX(parseInt(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
                                                         </div>
                                                         <div className="space-y-1.5">
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">4. Atas-Bawah</label>
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center block">4. Atas-Bawah</label>
                                                             <input type="range" min="-200" max="200" value={offsetY} onChange={(e) => setOffsetY(parseInt(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
                                                         </div>
                                                     </div>
 
-                                                    <button onClick={() => { setOriginalImg(null); setOffsetX(0); setOffsetY(0); setScale(1.0); }} className="w-full py-2.5 text-[10px] text-red-500 hover:bg-red-50 rounded-lg flex items-center justify-center gap-2 font-bold transition-all uppercase tracking-widest border border-red-100">
+                                                    <button onClick={() => { setOriginalImg(null); setOffsetX(0); setOffsetY(0); setScale(1.0); }} className="w-full py-2.5 text-[10px] text-red-500 hover:bg-red-50 rounded-lg flex items-center justify-center gap-2 font-bold uppercase tracking-widest border border-red-100">
                                                         <i data-lucide="trash-2" className="w-3.5 h-3.5"></i> Ganti Tanda Tangan
                                                     </button>
                                                 </div>
@@ -292,23 +304,23 @@
 
                         {/* PREVIEW SURAT (DOKUMEN) */}
                         <div className="w-full lg:w-7/12 flex flex-col items-center overflow-hidden">
-                            <div className="print-area w-full max-w-[210mm] bg-white shadow-2xl p-[18mm] md:p-[20mm] min-h-[297mm] text-[11pt] leading-snug text-black">
-                                <div className="text-right mb-10 font-sans">Jakarta, {formData.tanggal}</div>
+                            <div className="print-area w-full max-w-[210mm] bg-white shadow-2xl p-[14mm] min-h-[297mm] text-[10.5pt] leading-tight text-black flex flex-col">
+                                <div className="text-right mb-4 font-sans text-sm">Jakarta, {formData.tanggal}</div>
                                 
-                                <div className="mb-10 font-sans">
+                                <div className="mb-4 font-sans leading-snug">
                                     Kepada YTH.<br />
                                     <span className="font-bold">Ketua Penerimaan Mahasiswa Baru</span><br />
                                     Universitas Bina Sarana Informatika<br />
                                     Di Tempat
                                 </div>
 
-                                <div className="font-bold mb-10 uppercase underline decoration-1 underline-offset-4 italic font-sans tracking-wide">Perihal : Pengajuan Mutasi</div>
+                                <div className="font-bold mb-4 uppercase underline decoration-1 underline-offset-4 italic font-sans tracking-wide">Perihal : Pengajuan Mutasi</div>
                                 
-                                <p className="mb-8 text-justify font-sans leading-relaxed">
+                                <p className="mb-4 text-justify font-sans leading-normal">
                                     Saya yang bertanda tangan dibawah ini, telah terdaftar di Universitas Bina Sarana Informatika. Dan Akan mengajukan mutasi. Adapun data saya sebagai berikut :
                                 </p>
                                 
-                                <table className="w-full mb-10 font-sans border-separate border-spacing-y-1">
+                                <table className="w-full mb-4 font-sans border-separate border-spacing-y-0.5 tight-layout">
                                     <tbody>
                                         {[
                                             ['Nama', formData.nama], 
@@ -323,19 +335,19 @@
                                             ['Peminatan', formData.peminatanAsal]
                                         ].map(([label, val, bold], idx) => (
                                             <tr key={idx}>
-                                                <td className="w-[180px] py-1 align-top">{label}</td>
+                                                <td className="w-[180px] align-top">{label}</td>
                                                 <td className={`${bold ? 'font-bold' : ''} align-top`}>: {val || '...................................................'}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
 
-                                <p className="mb-6 font-sans leading-relaxed">
+                                <p className="mb-4 font-sans leading-normal">
                                     Dengan ini mengajukan perpindahan dikarenakan <strong>{formData.alasan || '..........................'}</strong>. Adapun data pengajuan mutasi sebagai berikut :
                                 </p>
 
-                                <div className="font-bold underline mb-4 uppercase font-sans tracking-wide">Mengajukan Pindah ke :</div>
-                                <table className="w-full mb-12 font-sans border-separate border-spacing-y-1">
+                                <div className="font-bold underline mb-2 uppercase font-sans tracking-wide">Mengajukan Pindah ke :</div>
+                                <table className="w-full mb-4 font-sans border-separate border-spacing-y-0.5 tight-layout">
                                     <tbody>
                                         {[
                                             ['Periode kuliah', formData.periodeTujuan, true], 
@@ -345,16 +357,16 @@
                                             ['Peminatan', formData.peminatanTujuan]
                                         ].map(([label, val, bold], idx) => (
                                             <tr key={idx}>
-                                                <td className="w-[180px] py-1 align-top">{label}</td>
+                                                <td className="w-[180px] align-top">{label}</td>
                                                 <td className={`${bold ? 'font-bold' : ''} align-top`}>: {val || '...................................................'}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
 
-                                <p className="mb-12 font-sans leading-relaxed">Demikian surat pengajuan mutasi ini dibuat. Atas perhatian dan kebijaksanaannya diucapkan terima kasih.</p>
+                                <p className="mb-4 font-sans leading-normal">Demikian surat pengajuan mutasi ini dibuat. Tanpa ada unsur paksaan dari pihak manapun. Atas perhatian dan kebijaksanaannya diucapkan terima kasih.</p>
 
-                                <div className="mt-16 ml-4 font-sans">
+                                <div className="mt-auto pt-6 ml-4 font-sans">
                                     <div className="mb-1">Hormat Saya,</div>
                                     <div className="sig-container">
                                         {processedSig ? (
@@ -376,8 +388,8 @@
                                     </div>
                                 </div>
                             </div>
-                            <p className="no-print my-8 text-slate-400 text-[10px] italic">
-                                Preview Dokumen A4 - Gunakan Desktop untuk hasil cetak maksimal.
+                            <p className="no-print my-4 text-slate-400 text-[10px] italic">
+                                * Seluruh isi surat telah disesuaikan agar muat dalam 1 halaman A4.
                             </p>
                         </div>
                     </div>

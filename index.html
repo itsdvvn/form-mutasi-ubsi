@@ -24,24 +24,28 @@
                 padding: 0 !important;
                 width: 100% !important;
             }
-            @page { margin: 20mm; size: A4; }
+            @page { margin: 15mm; size: A4; }
         }
 
-        /* Custom scrollbar for better UX */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
         input[type=range] { accent-color: #2563eb; }
+        
+        /* Memastikan tanda tangan tidak pecah saat scaling */
+        .sig-image {
+            image-rendering: -webkit-optimize-contrast;
+            transform-origin: left center;
+        }
     </style>
 </head>
 <body class="bg-slate-50">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useCallback, useRef } = React;
+        const { useState, useEffect, useCallback } = React;
 
-        // Komponen Input Field Standar
         const Field = React.memo(({ label, name, value, onChange, placeholder, type = "text", full = false }) => (
             <div className={full ? "col-span-full space-y-1" : "space-y-1"}>
                 <label className="text-xs font-bold text-slate-600 uppercase">{label}</label>
@@ -56,98 +60,6 @@
             </div>
         ));
 
-        // MODAL UNTUK EDIT TANDA TANGAN
-        const SignatureModal = ({ isOpen, onClose, originalImg, threshold, setThreshold, scale, setScale, offset, setOffset, processedSig, onAutoTrim }) => {
-            if (!isOpen) return null;
-
-            return (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
-                    <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                        {/* Header */}
-                        <div className="p-4 border-b flex justify-between items-center bg-slate-50">
-                            <h2 className="font-bold text-slate-800 flex items-center gap-2">
-                                <i data-lucide="pen-tool" className="w-5 h-5 text-blue-600"></i>
-                                Signature Studio
-                            </h2>
-                            <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                                <i data-lucide="x" className="w-5 h-5 text-slate-500"></i>
-                            </button>
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                            {/* Preview Area */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-500 uppercase">Preview Hasil Pemrosesan</label>
-                                <div className="bg-slate-100 border-2 border-dashed border-slate-300 rounded-xl h-48 flex items-center justify-center overflow-hidden relative">
-                                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-                                    <img 
-                                        src={processedSig} 
-                                        className="relative z-10 max-h-full max-w-full drop-shadow-sm" 
-                                        style={{ transform: `scale(${scale})` }}
-                                        alt="Processed Signature" 
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Controls */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between">
-                                            <label className="text-xs font-bold text-slate-700 uppercase">Toleransi Background</label>
-                                            <span className="text-xs font-bold text-blue-600">{threshold}</span>
-                                        </div>
-                                        <input type="range" min="30" max="230" value={threshold} onChange={(e) => setThreshold(parseInt(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
-                                        <p className="text-[10px] text-slate-400 italic">Bersihkan bayangan & garis kertas.</p>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between">
-                                            <label className="text-xs font-bold text-slate-700 uppercase">Ukuran Tanda Tangan</label>
-                                            <span className="text-xs font-bold text-blue-600">{Math.round(scale * 100)}%</span>
-                                        </div>
-                                        <input type="range" min="0.5" max="3" step="0.1" value={scale} onChange={(e) => setScale(parseFloat(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between">
-                                            <label className="text-xs font-bold text-slate-700 uppercase">Posisi Horizontal</label>
-                                            <span className="text-xs font-bold text-blue-600">{offset.x}px</span>
-                                        </div>
-                                        <input type="range" min="-50" max="50" value={offset.x} onChange={(e) => setOffset({...offset, x: parseInt(e.target.value)})} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
-                                    </div>
-                                    
-                                    <div className="pt-2">
-                                        <button 
-                                            onClick={onAutoTrim}
-                                            className="w-full py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
-                                        >
-                                            <i data-lucide="crop" className="w-4 h-4"></i>
-                                            AUTO CROP (TRIM)
-                                        </button>
-                                        <p className="mt-2 text-[9px] text-slate-400 leading-tight">Otomatis membuang area kosong di pinggir tanda tangan agar lebih fokus.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="p-4 border-t bg-slate-50 flex justify-end">
-                            <button 
-                                onClick={onClose}
-                                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition-all active:scale-95"
-                            >
-                                Selesai & Simpan
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
         const App = () => {
             const [formData, setFormData] = useState({
                 tanggal: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
@@ -160,33 +72,30 @@
                 kampusAsal: '',
                 jenjangAsal: 'S1',
                 prodiAsal: '',
-                peminatanAsal: '',
+                peminatanAsal: 'Public Relations',
                 waktuAsal: '',
                 alasan: '',
                 periodeTujuan: 'Maret 2026',
                 kampusTujuan: '',
                 jenjangTujuan: 'S1',
                 prodiTujuan: '',
-                peminatanTujuan: '',
+                peminatanTujuan: 'Public Relations',
                 waktuTujuan: '',
             });
 
-            // State Signature
             const [originalImg, setOriginalImg] = useState(null);
             const [processedSig, setProcessedSig] = useState(null);
             const [threshold, setThreshold] = useState(150);
             const [scale, setScale] = useState(1.0);
-            const [offset, setOffset] = useState({ x: 0, y: 0 });
-            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [offsetX, setOffsetX] = useState(0);
 
-            useEffect(() => { lucide.createIcons(); }, [originalImg, isModalOpen, processedSig]);
+            useEffect(() => { lucide.createIcons(); }, [originalImg, processedSig]);
 
             const handleChange = useCallback((e) => {
                 const { name, value } = e.target;
                 setFormData(prev => ({ ...prev, [name]: value }));
             }, []);
 
-            // Pemrosesan gambar utama
             const processImage = (imgElement, currentThreshold) => {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
@@ -205,66 +114,13 @@
                     }
                 }
                 ctx.putImageData(imageData, 0, 0);
-                return canvas;
+                return canvas.toDataURL('image/png');
             };
 
-            // Fungsi Auto Crop (Trim Whitespace)
-            const handleAutoTrim = () => {
-                if (!originalImg) return;
-                
-                const canvas = processImage(originalImg, threshold);
-                const ctx = canvas.getContext('2d');
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-                const width = canvas.width;
-                const height = canvas.height;
-
-                let minX = width, minY = height, maxX = 0, maxY = 0;
-                let found = false;
-
-                for (let y = 0; y < height; y++) {
-                    for (let x = 0; x < width; x++) {
-                        const alpha = data[(y * width + x) * 4 + 3];
-                        if (alpha > 0) {
-                            if (x < minX) minX = x;
-                            if (y < minY) minY = y;
-                            if (x > maxX) maxX = x;
-                            if (y > maxY) maxY = y;
-                            found = true;
-                        }
-                    }
-                }
-
-                if (!found) return;
-
-                const padding = 10;
-                minX = Math.max(0, minX - padding);
-                minY = Math.max(0, minY - padding);
-                maxX = Math.min(width, maxX + padding);
-                maxY = Math.min(height, maxY + padding);
-
-                const cropW = maxX - minX;
-                const cropH = maxY - minY;
-
-                const trimCanvas = document.createElement('canvas');
-                trimCanvas.width = cropW;
-                trimCanvas.height = cropH;
-                trimCanvas.getContext('2d').drawImage(canvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
-                
-                // Gunakan hasil trim sebagai "image baru" untuk diproses selanjutnya
-                const trimmedImg = new Image();
-                trimmedImg.onload = () => {
-                    setOriginalImg(trimmedImg);
-                    setScale(1.2); // Set default scale sedikit lebih besar setelah crop
-                };
-                trimmedImg.src = trimCanvas.toDataURL('image/png');
-            };
-
-            // Trigger re-processing saat threshold berubah
             useEffect(() => {
                 if (originalImg) {
-                    const canvas = processImage(originalImg, threshold);
-                    setProcessedSig(canvas.toDataURL('image/png'));
+                    const result = processImage(originalImg, threshold);
+                    setProcessedSig(result);
                 }
             }, [threshold, originalImg]);
 
@@ -274,10 +130,7 @@
                     const reader = new FileReader();
                     reader.onload = (event) => {
                         const img = new Image();
-                        img.onload = () => {
-                            setOriginalImg(img);
-                            setIsModalOpen(true);
-                        };
+                        img.onload = () => setOriginalImg(img);
                         img.src = event.target.result;
                     };
                     reader.readAsDataURL(file);
@@ -286,34 +139,26 @@
 
             return (
                 <div className="min-h-screen p-4 md:p-8">
-                    <SignatureModal 
-                        isOpen={isModalOpen}
-                        onClose={() => setIsModalOpen(false)}
-                        originalImg={originalImg}
-                        threshold={threshold} setThreshold={setThreshold}
-                        scale={scale} setScale={setScale}
-                        offset={offset} setOffset={setOffset}
-                        processedSig={processedSig}
-                        onAutoTrim={handleAutoTrim}
-                    />
-
                     <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8">
-                        {/* FORM KIRI */}
-                        <div className="w-full lg:w-5/12 space-y-6 no-print">
+                        
+                        {/* FORM KIRI (KONTROL) */}
+                        <div className="w-full lg:w-5/12 space-y-6 no-print h-fit lg:sticky lg:top-8 overflow-y-auto max-h-[90vh] pr-2">
                             <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200">
                                 <div className="flex items-center gap-3 mb-6">
-                                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><i data-lucide="file-text"></i></div>
-                                    <h1 className="text-xl font-bold text-slate-800">Form Pengajuan Mutasi</h1>
+                                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><i data-lucide="edit-3"></i></div>
+                                    <h1 className="text-xl font-bold text-slate-800">Data Pengajuan</h1>
                                 </div>
 
                                 <div className="space-y-6">
+                                    {/* Data Diri */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <Field label="Nama Lengkap" name="nama" value={formData.nama} onChange={handleChange} placeholder="Muhammad..." />
                                         <Field label="NIM" name="nim" value={formData.nim} onChange={handleChange} placeholder="1221xxxx" />
                                         <Field label="Kelas" name="kelas" value={formData.kelas} onChange={handleChange} placeholder="12.4A.01" />
                                         <Field label="No HP" name="noHp" value={formData.noHp} onChange={handleChange} placeholder="0812xxx" />
+                                        <Field label="Email" name="email" value={formData.email} onChange={handleChange} placeholder="alamat@email.com" full />
                                         <div className="space-y-1">
-                                            <label className="text-xs font-bold text-slate-600 uppercase">Periode Asal</label>
+                                            <label className="text-xs font-bold text-slate-600 uppercase">Periode Kuliah Asal</label>
                                             <select name="periodeAsal" value={formData.periodeAsal} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg outline-none text-sm bg-white">
                                                 <option>Maret 2025</option><option>September 2025</option>
                                             </select>
@@ -323,6 +168,10 @@
                                         <Field label="Kampus Asal" name="kampusAsal" value={formData.kampusAsal} onChange={handleChange} placeholder="UBSI Cengkareng" />
                                     </div>
 
+                                    {/* Alasan */}
+                                    <Field label="Alasan Mutasi" name="alasan" value={formData.alasan} onChange={handleChange} placeholder="Contoh: Pindah domisili kerja..." full />
+
+                                    {/* Data Tujuan */}
                                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-4">
                                         <h3 className="font-bold text-blue-800 text-sm flex items-center gap-2"><i data-lucide="map-pin" className="w-4 h-4"></i> Rencana Pindah 2026</h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -338,32 +187,52 @@
                                         </div>
                                     </div>
 
-                                    {/* Signature Upload Area */}
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-600 uppercase">Tanda Tangan</label>
-                                        <div className="p-4 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center gap-3">
-                                            {originalImg ? (
-                                                <div className="flex flex-col items-center gap-2 w-full">
-                                                    <div className="h-20 bg-white border rounded-lg p-2 flex items-center justify-center overflow-hidden w-full relative">
-                                                        <img src={processedSig} className="max-h-full" style={{ transform: `scale(${scale}) translateX(${offset.x}px)` }} />
+                                    {/* Tanda Tangan Section */}
+                                    <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2"><i data-lucide="pen-tool" className="w-4 h-4"></i> Signature Studio</h3>
+                                        
+                                        {!originalImg ? (
+                                            <div className="w-full">
+                                                <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" id="sig-upload" />
+                                                <label htmlFor="sig-upload" className="w-full py-6 bg-white border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center cursor-pointer hover:bg-slate-100 transition-colors">
+                                                    <i data-lucide="upload-cloud" className="w-8 h-8 text-slate-400 mb-2"></i>
+                                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Upload Foto TTD</span>
+                                                </label>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-5">
+                                                {/* Threshold Control */}
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between items-center">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase">1. Toleransi Background</label>
+                                                        <span className="text-xs font-bold text-blue-600">{threshold}</span>
                                                     </div>
-                                                    <button 
-                                                        onClick={() => setIsModalOpen(true)}
-                                                        className="text-xs font-bold text-blue-600 flex items-center gap-1 hover:underline"
-                                                    >
-                                                        <i data-lucide="settings" className="w-3 h-3"></i> Edit Tanda Tangan (Crop & Scale)
-                                                    </button>
+                                                    <input type="range" min="30" max="230" value={threshold} onChange={(e) => setThreshold(parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
                                                 </div>
-                                            ) : (
-                                                <div className="w-full">
-                                                    <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" id="sig-upload" />
-                                                    <label htmlFor="sig-upload" className="w-full py-4 bg-white border border-slate-200 rounded-lg flex flex-col items-center cursor-pointer hover:bg-slate-100 transition-colors">
-                                                        <i data-lucide="upload-cloud" className="w-6 h-6 text-slate-400 mb-1"></i>
-                                                        <span className="text-[10px] font-bold text-slate-500 uppercase">Upload Foto TTD</span>
-                                                    </label>
+
+                                                {/* Scale Control */}
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between items-center">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase">2. Ukuran TTD</label>
+                                                        <span className="text-xs font-bold text-blue-600">{Math.round(scale * 100)}%</span>
+                                                    </div>
+                                                    <input type="range" min="0.2" max="2.5" step="0.05" value={scale} onChange={(e) => setScale(parseFloat(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
                                                 </div>
-                                            )}
-                                        </div>
+
+                                                {/* Offset Control */}
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between items-center">
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase">3. Geser Kiri-Kanan</label>
+                                                        <span className="text-xs font-bold text-blue-600">{offsetX}px</span>
+                                                    </div>
+                                                    <input type="range" min="-100" max="100" value={offsetX} onChange={(e) => setOffsetX(parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
+                                                </div>
+
+                                                <button onClick={() => setOriginalImg(null)} className="text-[10px] text-red-500 hover:underline flex items-center gap-1 font-bold">
+                                                    <i data-lucide="trash-2" className="w-3 h-3"></i> Hapus & Ganti Tanda Tangan
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <button onClick={() => window.print()} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
@@ -373,61 +242,86 @@
                             </div>
                         </div>
 
-                        {/* PREVIEW SURAT KANAN */}
+                        {/* PREVIEW SURAT (DOKUMEN) */}
                         <div className="w-full lg:w-7/12 flex flex-col items-center">
                             <div className="print-area w-full max-w-[210mm] bg-white shadow-2xl p-[18mm] min-h-[297mm] text-[11pt] leading-snug text-black">
                                 <div className="text-right mb-10 font-sans">Jakarta, {formData.tanggal}</div>
-                                <div className="mb-8">
+                                
+                                <div className="mb-8 font-sans">
                                     Kepada YTH.<br />
                                     <span className="font-bold">Ketua Penerimaan Mahasiswa Baru</span><br />
                                     Universitas Bina Sarana Informatika<br />
                                     Di Tempat
                                 </div>
-                                <div className="font-bold mb-8 uppercase underline decoration-1 underline-offset-4 italic">Perihal : Pengajuan Mutasi</div>
-                                <p className="mb-6 text-justify">Saya yang bertanda tangan dibawah ini, telah terdaftar di Universitas Bina Sarana Informatika. Dan Akan mengajukan mutasi. Adapun data saya sebagai berikut :</p>
+
+                                <div className="font-bold mb-8 uppercase underline decoration-1 underline-offset-4 italic font-sans">Perihal : Pengajuan Mutasi</div>
                                 
-                                <table className="w-full mb-8">
+                                <p className="mb-6 text-justify font-sans">
+                                    Saya yang bertanda tangan dibawah ini, telah terdaftar di Universitas Bina Sarana Informatika. Dan Akan mengajukan mutasi. Adapun data saya sebagai berikut :
+                                </p>
+                                
+                                <table className="w-full mb-8 font-sans">
                                     <tbody>
                                         {[
-                                            ['Nama', formData.nama], ['NIM', formData.nim], ['Kelas', formData.kelas],
-                                            ['Email', formData.email], ['No Handphone', formData.noHp],
-                                            ['Periode kuliah', formData.periodeAsal, true], ['Kampus UBSI cabang', formData.kampusAsal],
-                                            ['Jenjang Study', formData.jenjangAsal, true], ['Program Studi', formData.prodiAsal],
+                                            ['Nama', formData.nama], 
+                                            ['NIM', formData.nim], 
+                                            ['Kelas', formData.kelas],
+                                            ['Email', formData.email], 
+                                            ['No Handphone', formData.noHp],
+                                            ['Periode kuliah', formData.periodeAsal, true], 
+                                            ['Kampus UBSI cabang', formData.kampusAsal],
+                                            ['Jenjang Study', formData.jenjangAsal, true], 
+                                            ['Program Studi', formData.prodiAsal],
                                             ['Peminatan', formData.peminatanAsal]
                                         ].map(([label, val, bold], idx) => (
-                                            <tr key={idx}><td className="w-[180px] py-0.5">{label}</td><td className={bold ? 'font-bold' : ''}>: {val || '...................................................'}</td></tr>
+                                            <tr key={idx}>
+                                                <td className="w-[180px] py-0.5">{label}</td>
+                                                <td className={bold ? 'font-bold' : ''}>: {val || '...................................................'}</td>
+                                            </tr>
                                         ))}
                                     </tbody>
                                 </table>
 
-                                <p className="mb-4">Dengan ini mengajukan perpindahan dikarenakan <strong>{formData.alasan || '..........................'}</strong>. Data tujuan mutasi:</p>
-                                <table className="w-full mb-10">
+                                <p className="mb-4 font-sans">
+                                    Dengan ini mengajukan perpindahan dikarenakan <strong>{formData.alasan || '..........................'}</strong>. Adapun data pengajuan mutasi sebagai berikut :
+                                </p>
+
+                                <div className="font-bold underline mb-4 uppercase font-sans">Mengajukan Pindah ke :</div>
+                                <table className="w-full mb-10 font-sans">
                                     <tbody>
                                         {[
-                                            ['Periode kuliah', formData.periodeTujuan, true], ['Kampus UBSI cabang', formData.kampusTujuan],
-                                            ['Jenjang Study', formData.jenjangTujuan, true], ['Program Studi', formData.prodiTujuan],
+                                            ['Periode kuliah', formData.periodeTujuan, true], 
+                                            ['Kampus UBSI cabang', formData.kampusTujuan],
+                                            ['Jenjang Study', formData.jenjangTujuan, true], 
+                                            ['Program Studi', formData.prodiTujuan],
                                             ['Peminatan', formData.peminatanTujuan]
                                         ].map(([label, val, bold], idx) => (
-                                            <tr key={idx}><td className="w-[180px] py-0.5">{label}</td><td className={bold ? 'font-bold' : ''}>: {val || '...................................................'}</td></tr>
+                                            <tr key={idx}>
+                                                <td className="w-[180px] py-0.5">{label}</td>
+                                                <td className={bold ? 'font-bold' : ''}>: {val || '...................................................'}</td>
+                                            </tr>
                                         ))}
                                     </tbody>
                                 </table>
 
-                                <p className="mb-10">Demikian surat pengajuan mutasi ini dibuat. Atas perhatiannya diucapkan terima kasih.</p>
+                                <p className="mb-10 font-sans">Demikian surat pengajuan mutasi ini dibuat. Atas perhatian dan kebijaksanaannya diucapkan terima kasih.</p>
 
-                                <div className="mt-10 ml-4">
-                                    <div>Hormat Saya</div>
-                                    <div className="h-28 flex items-center justify-start overflow-hidden relative" style={{ width: '200px' }}>
+                                <div className="mt-10 ml-4 font-sans">
+                                    <div>Hormat Saya,</div>
+                                    <div className="h-28 flex items-center justify-start overflow-hidden relative" style={{ width: '300px' }}>
                                         {processedSig ? (
                                             <img 
                                                 src={processedSig} 
-                                                className="signature-preview drop-shadow-sm" 
+                                                className="sig-image" 
                                                 style={{ 
-                                                    transform: `scale(${scale}) translateX(${offset.x}px)`,
-                                                    transformOrigin: 'left center'
+                                                    transform: `scale(${scale}) translateX(${offsetX}px)`,
                                                 }} 
                                             />
-                                        ) : <div className="no-print text-slate-200 italic text-[10px] mt-10">Tanda tangan</div>}
+                                        ) : (
+                                            <div className="no-print border border-dashed border-slate-200 w-32 h-16 flex items-center justify-center text-[10px] text-slate-300 italic">
+                                                TTD akan muncul di sini
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="font-bold underline uppercase">( {formData.nama || 'Muhammad Wahyudi Setiawan'} )</div>
                                 </div>
